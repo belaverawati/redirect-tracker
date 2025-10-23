@@ -24,7 +24,7 @@ await db.exec(`
 
 // === Route untuk tracking + redirect ===
 app.get("/go", async (req, res) => {
-  const target = "https://contoh-website.com"; // Ganti ke URL targetmu
+  const target = "https://jacksonsfamilyfarm.com/"; // Ganti ke URL targetmu
   const telegram_id = req.query.tg || null;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   const ua = req.headers["user-agent"] || "-";
@@ -37,13 +37,16 @@ app.get("/go", async (req, res) => {
   res.redirect(target);
 });
 
-// === API untuk dashboard statistik ===
+// === API untuk statistik ===
 app.get("/stats", async (req, res) => {
   const total = await db.get("SELECT COUNT(*) as total FROM visits");
-  const today = await db.get("SELECT COUNT(*) as total FROM visits WHERE date(timestamp)=date('now')");
+  const today = await db.get(
+    "SELECT COUNT(*) as total FROM visits WHERE date(timestamp)=date('now')"
+  );
   res.json({ total: total.total, today: today.total });
 });
 
+// === API untuk list visitor ===
 app.get("/visitors", async (req, res) => {
   const rows = await db.all(
     "SELECT telegram_id, ip, user_agent, timestamp FROM visits ORDER BY id DESC LIMIT 100"
@@ -51,13 +54,20 @@ app.get("/visitors", async (req, res) => {
   res.json(rows);
 });
 
-// Dashboard sederhana
+// === Dashboard sederhana ===
 app.get("/", (req, res) => {
   res.send(`
     <h1>📊 Tracking Dashboard</h1>
-    <div id="stats"></div>
-    <table border="1" style="margin-top:20px;">
-      <thead><tr><th>ID Telegram</th><th>IP</th><th>Device</th><th>Waktu</th></tr></thead>
+    <div id="stats" style="font-size:18px;margin-bottom:10px;"></div>
+    <table border="1" cellspacing="0" cellpadding="6" style="margin-top:10px;border-collapse:collapse;font-family:Arial;">
+      <thead style="background:#f4f4f4;">
+        <tr>
+          <th>ID Telegram</th>
+          <th>IP</th>
+          <th>Device</th>
+          <th>Waktu</th>
+        </tr>
+      </thead>
       <tbody id="table"></tbody>
     </table>
     <script>
@@ -67,19 +77,23 @@ app.get("/", (req, res) => {
           "👁️ Total: " + s.total + "<br>📅 Hari ini: " + s.today;
 
         const v = await fetch('/visitors').then(r=>r.json());
-        document.getElementById('table').innerHTML = v.map(r=>`
-          <tr>
-            <td>${r.telegram_id || '-'}</td>
-            <td>${r.ip || '-'}</td>
-            <td>${r.user_agent || '-'}</td>
-            <td>${r.timestamp}</td>
-          </tr>
-        `).join('');
+        let rows = "";
+        v.forEach(r => {
+          rows += "<tr>" +
+                    "<td>" + (r.telegram_id || '-') + "</td>" +
+                    "<td>" + (r.ip || '-') + "</td>" +
+                    "<td>" + (r.user_agent || '-') + "</td>" +
+                    "<td>" + r.timestamp + "</td>" +
+                  "</tr>";
+        });
+        document.getElementById('table').innerHTML = rows;
       }
-      load(); setInterval(load, 5000);
+      load();
+      setInterval(load, 5000);
     </script>
   `);
 });
 
+// === Start Server ===
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Redirect Tracker running on port ${PORT}`));
